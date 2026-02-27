@@ -33,12 +33,14 @@ func Init() {
 			TLSKey     string `yaml:"tls_key"`
 			UnixListen string `yaml:"unix_listen"`
 
-			AllowPaths []string `yaml:"allow_paths"`
+			AllowPaths   []string `yaml:"allow_paths"`
+			AllowHeaders []string `yaml:"allow_headers"`
 		} `yaml:"api"`
 	}
 
 	// default config
 	cfg.Mod.Listen = ":1984"
+	cfg.Mod.AllowHeaders = []string{"Authorization", "Content-Type"}
 
 	// load config from YAML
 	app.LoadConfig(&cfg)
@@ -62,7 +64,7 @@ func Init() {
 	Handler = http.DefaultServeMux // 4th
 
 	if cfg.Mod.Origin == "*" {
-		Handler = middlewareCORS(Handler) // 3rd
+		Handler = middlewareCORS(Handler, cfg.Mod.AllowHeaders) // 3rd
 	}
 
 	if cfg.Mod.Username != "" {
@@ -224,11 +226,11 @@ func middlewareAuth(username, password string, localAuth bool, next http.Handler
 	})
 }
 
-func middlewareCORS(next http.Handler) http.Handler {
+func middlewareCORS(next http.Handler, allowHeaders []string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", strings.Join(allowHeaders, ", "))
 		next.ServeHTTP(w, r)
 	})
 }
